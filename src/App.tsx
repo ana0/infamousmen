@@ -44,38 +44,38 @@ function App() {
             
             if (hasAudioData) {
               // Draw real frequency data
-              const barWidth = canvas.width / bufferLength
+              const barWidth = (canvas.width / bufferLength) * 2
               for (let i = 0; i < bufferLength; i++) {
                 const barHeight = (dataArray[i] / 255) * canvas.height
                 const x = i * barWidth
                 
-                // Create gradient from soft pink to bright blue
-                const gradient = ctx.createLinearGradient(0, canvas.height - barHeight, 0, canvas.height)
+                // Create gradient from top to bottom (inverted direction)
+                const gradient = ctx.createLinearGradient(0, 0, 0, barHeight)
                 gradient.addColorStop(0, '#ff0000')
                 gradient.addColorStop(0.5, '#ff99cc')
                 gradient.addColorStop(1, '#0000ff')
                 
                 ctx.fillStyle = gradient
-                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight)
+                ctx.fillRect(x, 0, barWidth, barHeight)
               }
             } else {
               // Show demo pattern when no audio
               const time = Date.now() * 0.001
-              const barWidth = canvas.width / 64
+              const barWidth = (canvas.width / 64) * 2
               for (let i = 0; i < 64; i++) {
                 const frequency = i / 64
                 const amplitude = Math.sin(time * 2 + frequency * 10) * 0.5 + 0.5
-                const barHeight = amplitude * canvas.height * 0.3
+                const barHeight = amplitude * canvas.height * 0.4
                 const x = i * barWidth
                 
-                // Create gradient from soft pink to bright blue
-                const gradient = ctx.createLinearGradient(0, canvas.height - barHeight, 0, canvas.height)
+                // Create gradient from top to bottom (inverted direction)
+                const gradient = ctx.createLinearGradient(0, 0, 0, barHeight)
                 gradient.addColorStop(0, '#ff0000')
                 gradient.addColorStop(0.5, '#ff99cc')
                 gradient.addColorStop(1, '#0000ff')
                 
                 ctx.fillStyle = gradient
-                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight)
+                ctx.fillRect(x, 0, barWidth, barHeight)
               }
             }
           }
@@ -123,7 +123,7 @@ function App() {
         ref={canvasRef}
         className="spectrogram-canvas"
         width={window.innerWidth}
-        height={120}
+        height={300}
       />
       <video 
         ref={videoRef}
