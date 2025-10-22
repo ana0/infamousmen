@@ -134,7 +134,7 @@ function App() {
         loop
         playsInline
       >
-        <source src="https://pub-166474990ea24709a41c8e491c22ddfe.r2.dev/output_montage.mp4" type="video/mp4" />
+        <source src="https://bacteria.farm/output_montage.mp4" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
       {isMuted && (
