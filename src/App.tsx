@@ -3,29 +3,128 @@ import './App.css'
 
 function App() {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null)
   const [isMuted, setIsMuted] = useState(true)
 
   useEffect(() => {
     const video = videoRef.current
-    if (video) {
+    const canvas = canvasRef.current
+    
+    if (video && canvas) {
       // Ensure the video is ready for audio
       video.volume = 1.0
+      
+      // Set up audio context and analyser
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const analyser = audioContext.createAnalyser()
+      
+      analyser.fftSize = 256
+      analyser.smoothingTimeConstant = 0.8
+      
+      audioContextRef.current = audioContext
+      analyserRef.current = analyser
+      
+      // Start spectrogram animation
+      const animate = () => {
+        if (analyser && canvas) {
+          const bufferLength = analyser.frequencyBinCount
+          const dataArray = new Uint8Array(bufferLength)
+          analyser.getByteFrequencyData(dataArray)
+          
+          const ctx = canvas.getContext('2d')
+          if (ctx) {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            
+            // Check if we have any audio data
+            const hasAudioData = dataArray.some(value => value > 0)
+            
+            if (hasAudioData) {
+              // Draw real frequency data
+              const barWidth = canvas.width / bufferLength
+              for (let i = 0; i < bufferLength; i++) {
+                const barHeight = (dataArray[i] / 255) * canvas.height
+                const x = i * barWidth
+                
+                // Create gradient from soft pink to bright blue
+                const gradient = ctx.createLinearGradient(0, canvas.height - barHeight, 0, canvas.height)
+                gradient.addColorStop(0, '#ff0000')
+                gradient.addColorStop(0.5, '#ff99cc')
+                gradient.addColorStop(1, '#0000ff')
+                
+                ctx.fillStyle = gradient
+                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight)
+              }
+            } else {
+              // Show demo pattern when no audio
+              const time = Date.now() * 0.001
+              const barWidth = canvas.width / 64
+              for (let i = 0; i < 64; i++) {
+                const frequency = i / 64
+                const amplitude = Math.sin(time * 2 + frequency * 10) * 0.5 + 0.5
+                const barHeight = amplitude * canvas.height * 0.3
+                const x = i * barWidth
+                
+                // Create gradient from soft pink to bright blue
+                const gradient = ctx.createLinearGradient(0, canvas.height - barHeight, 0, canvas.height)
+                gradient.addColorStop(0, '#ff0000')
+                gradient.addColorStop(0.5, '#ff99cc')
+                gradient.addColorStop(1, '#0000ff')
+                
+                ctx.fillStyle = gradient
+                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight)
+              }
+            }
+          }
+        }
+        requestAnimationFrame(animate)
+      }
+      
+      animate()
+    }
+    
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close()
+      }
     }
   }, [])
 
-  const handleVideoClick = (e: React.MouseEvent) => {
+  const handleVideoClick = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    if (videoRef.current) {
+    if (videoRef.current && audioContextRef.current && analyserRef.current) {
       const newMutedState = !videoRef.current.muted
       videoRef.current.muted = newMutedState
       videoRef.current.volume = newMutedState ? 0 : 1
       setIsMuted(newMutedState)
+      
+      // Connect audio source when unmuting
+      if (!newMutedState && !sourceRef.current) {
+        try {
+          await audioContextRef.current.resume()
+          const source = audioContextRef.current.createMediaElementSource(videoRef.current)
+          source.connect(analyserRef.current)
+          analyserRef.current.connect(audioContextRef.current.destination)
+          sourceRef.current = source
+        } catch (error) {
+          console.log('Audio context connection failed:', error)
+        }
+      }
     }
   }
 
   return (
     <div className="video-container" onClick={handleVideoClick}>
+      <canvas 
+        ref={canvasRef}
+        className="spectrogram-canvas"
+        width={window.innerWidth}
+        height={120}
+      />
       <video 
         ref={videoRef}
         className="main-video" 
