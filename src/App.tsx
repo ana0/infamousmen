@@ -128,6 +128,7 @@ function App() {
       <video 
         ref={videoRef}
         className="main-video" 
+        crossOrigin="anonymous"
         autoPlay 
         muted 
         loop
