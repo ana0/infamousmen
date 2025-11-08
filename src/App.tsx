@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
+import Hls from 'hls.js'
 import './App.css'
 
 function App() {
@@ -7,6 +8,7 @@ function App() {
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null)
+  const hlsRef = useRef<Hls | null>(null)
   const [isMuted, setIsMuted] = useState(true)
 
   useEffect(() => {
@@ -14,6 +16,48 @@ function App() {
     const canvas = canvasRef.current
     
     if (video && canvas) {
+      // Initialize HLS
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+        })
+        
+        hls.loadSource('https://bacteria.farm/assets/output.m3u8')
+        hls.attachMedia(video)
+        
+        hlsRef.current = hls
+        
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                console.log('Fatal network error encountered, try to recover')
+                hls.startLoad()
+                break
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                console.log('Fatal media error encountered, try to recover')
+                hls.recoverMediaError()
+                break
+              default:
+                console.log('Fatal error, cannot recover')
+                hls.destroy()
+                break
+            }
+          }
+        })
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        // Native HLS support (Safari)
+        video.src = 'https://bacteria.farm/assets/output.m3u8'
+        
+        video.addEventListener('loadedmetadata', () => {
+          if (video.duration) {
+            const randomTime = Math.random() * (video.duration - 10)
+            video.currentTime = randomTime
+          }
+        })
+      }
+      
       // Ensure the video is ready for audio
       video.volume = 1.0
       
@@ -87,6 +131,10 @@ function App() {
     }
     
     return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy()
+        hlsRef.current = null
+      }
       if (audioContextRef.current) {
         audioContextRef.current.close()
       }
@@ -134,7 +182,6 @@ function App() {
         loop
         playsInline
       >
-        <source src="https://bacteria.farm/output_lives-final-small.mp4" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
       {isMuted && (
